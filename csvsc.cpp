@@ -10,10 +10,11 @@ int _tmain(int argc, wchar_t** argv)
 {
 	_setmode(_fileno(stdout), _O_U16TEXT);
 	if (argc != 2) {
-		std::cout << "usage:csvsc <csv-file>" << std::endl;
+		std::wcout << L"usage:csvsc <csv-file>" << std::endl;
 		return 0;
 	}
 
+	std::wcout << L"loading..." << std::endl;
 	csv_container container(argv[1]);
 	std::shared_ptr<command_provider> provider = create_command_provider();
 	std::shared_ptr<error_context> err_context(new console_error_context());

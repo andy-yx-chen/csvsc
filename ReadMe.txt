@@ -50,3 +50,28 @@ default:> default-value
 
 dropcolumn
 column:> col1
+
+reduce
+by:> [col1],[col2]
+columns:> col1,col2,col3...
+values:>[col1],[col2],CAST((CAST([col4] AS REAL) - CAST([col5] AS REAL))/CAST([col4] AS REAL) AS TEXT)
+order:> [col1]
+
+vac
+values-as-columns, which is turning the values into columns for a csv file, e.g.,
+Year,Product,Revenue
+2015,A,100000
+2015,B,150000
+2015,C,100000
+2014,A,90000
+2014,B,130000
+with the following parameters
+by:> Year
+from:> Product
+value:> Revenue
+default:> 0
+would turn the table into
+Year,A,B,C
+2015,100000,150000,100000
+2014,90000,130000,0
+with this change, it would be very easy for you to draw charts in excel

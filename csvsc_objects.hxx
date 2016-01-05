@@ -271,4 +271,42 @@ private:
 	std::wstring _default_value;
 };
 
+class reduce_command : public command {
+public:
+	reduce_command(context* context, const std::wstring& group_by, const std::wstring& order_by) 
+		: _context(context), _group_by(group_by), _order_by(order_by), _columns(), _values(){
+
+	}
+
+	virtual bool execute() override;
+
+	void add_column(const std::wstring& column) {
+		this->_columns.push_back(column);
+	}
+
+	void add_value(const std::wstring& value) {
+		this->_values.push_back(value);
+	}
+
+private:
+	context* _context;
+	std::wstring _group_by;
+	std::wstring _order_by;
+	std::vector<std::wstring> _columns;
+	std::vector<std::wstring> _values;
+};
+
+class values_as_columns_command : public command {
+public:
+	values_as_columns_command(context* context, const std::wstring& group_by, const std::wstring& column_source, const std::wstring& value_column, const std::wstring& default_value)
+		: _context(context), _group_by(group_by), _column_source(column_source), _value_column(value_column), _default_value(default_value) {}
+
+	virtual bool execute() override;
+private:
+	context* _context;
+	std::wstring _group_by;
+	std::wstring _column_source;
+	std::wstring _value_column;
+	std::wstring _default_value;
+};
 std::shared_ptr<command_provider> create_command_provider();

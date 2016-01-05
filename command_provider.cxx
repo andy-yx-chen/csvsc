@@ -36,6 +36,31 @@ column:> col1\n"
 column:> coln\n\
 default:> default-value\n"
 
+#define REDUCE_USAGE L"reduce\n\
+by:> [col1],[col2]\n\
+columns:> col1,col2,col3...\n\
+values:>[col1],[col2],CAST((CAST([col4] AS REAL) - CAST([col5] AS REAL))/CAST([col4] AS REAL) AS TEXT)\n\
+order:> [col1]\n"
+
+#define VALUES_AS_COLUMNS_USAGE L"vac\n\
+values-as-columns, which is turning the values into columns for a csv file, e.g.,\n\
+Year,Product,Revenue\n\
+2015,A,100000\n\
+2015,B,150000\n\
+2015,C,100000\n\
+2014,A,90000\n\
+2014,B,130000\n\
+with the following parameters\n\
+by:> Year\n\
+from:> Product\n\
+value:> Revenue\n\
+default:> 0\n\
+would turn the table into\n\
+Year,A,B,C\n\
+2015,100000,150000,100000\n\
+2014,90000,130000,0\n\
+with this change, it would be very easy for you to draw charts in excel\n"
+
 void console_error_context::on_command_error(const std::wstring& error) {
 	std::wcout << L"ERR: " << error << std::endl;
 }
@@ -247,6 +272,86 @@ public:
 	}
 };
 
+class reduce_cmd_generator : public console_cmd_generator {
+public:
+	reduce_cmd_generator() : console_cmd_generator(REDUCE_USAGE) {}
+
+	virtual std::shared_ptr<command> generate(context* context) const override {
+		std::wstring group_by;
+		do {
+			std::wcout << L"by:> ";
+			std::getline(std::wcin, group_by);
+		} while (group_by.length() == 0);
+
+		std::wstring columns;
+		do {
+			std::wcout << L"columns:> ";
+			std::getline(std::wcin, columns);
+		} while (columns.length() == 0);
+
+		std::wstring values;
+		do {
+			std::wcout << L"values:> ";
+			std::getline(std::wcin, values);
+		} while (values.length() == 0);
+
+		std::wstring order_by;
+		std::wcout << L"order:> ";
+		std::getline(std::wcin, order_by);
+
+		string_tokenizer tokenizer(columns, L",");
+		reduce_command* cmd = new reduce_command(context, group_by, order_by);
+
+		while (tokenizer.has_more()) {
+			std::wstring column = tokenizer.next();
+			if (column.length() > 0) {
+				cmd->add_column(column);
+			}
+		}
+
+		string_tokenizer value_tokenizer(values, L",");
+		while (value_tokenizer.has_more()) {
+			std::wstring value = value_tokenizer.next();
+			if (value.length() > 0) {
+				cmd->add_value(value);
+			}
+		}
+
+		return std::move(std::shared_ptr<command>(cmd));
+	}
+};
+
+class vac_cmd_generator : public console_cmd_generator {
+public:
+	vac_cmd_generator() : console_cmd_generator(VALUES_AS_COLUMNS_USAGE) {}
+
+	virtual std::shared_ptr<command> generate(context* context) const override {
+		std::wstring group_by;
+		do {
+			std::wcout << L"by:> ";
+			std::getline(std::wcin, group_by);
+		} while (group_by.length() == 0);
+
+		std::wstring column_source;
+		do {
+			std::wcout << L"from:> ";
+			std::getline(std::wcin, column_source);
+		} while (column_source.length() == 0);
+
+		std::wstring value_expression;
+		do {
+			std::wcout << L"value:> ";
+			std::getline(std::wcin, value_expression);
+		} while (value_expression.length() == 0);
+
+		std::wstring default_value;
+		std::wcout << L"default:> ";
+		std::getline(std::wcin, default_value);
+
+		return std::move(std::shared_ptr<command>(new values_as_columns_command(context, group_by, column_source, value_expression, default_value)));
+	}
+};
+
 class console_command_provider : public command_provider {
 public:
 	console_command_provider();
@@ -267,6 +372,8 @@ console_command_provider::console_command_provider() : _generators() {
 	this->_generators.insert(std::make_pair(L"delete", std::move(std::shared_ptr<console_cmd_generator>(new delete_cmd_generator()))));
 	this->_generators.insert(std::make_pair(L"dropcolumn", std::move(std::shared_ptr<console_cmd_generator>(new drop_column_cmd_generator()))));
 	this->_generators.insert(std::make_pair(L"addcolumn", std::move(std::shared_ptr<console_cmd_generator>(new add_column_cmd_generator()))));
+	this->_generators.insert(std::make_pair(L"reduce", std::move(std::shared_ptr<console_cmd_generator>(new reduce_cmd_generator()))));
+	this->_generators.insert(std::make_pair(L"vac", std::move(std::shared_ptr<console_cmd_generator>(new vac_cmd_generator()))));
 }
 
 std::shared_ptr<command> console_command_provider::next_command(context* context) {
