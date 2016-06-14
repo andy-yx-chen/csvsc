@@ -65,12 +65,15 @@ void console_error_context::on_command_error(const std::wstring& error) {
 	std::wcout << L"ERR: " << error << std::endl;
 }
 
+typedef std::basic_istream<wchar_t> istream;
+
 class console_cmd_generator {
 public:
 	console_cmd_generator(const std::wstring& usage)
-		: _usage(usage) {
-		//
-	}
+		: _usage(usage), _input(std::wcin) {}
+
+    console_cmd_generator(const std::wstring& usage, istream& input)
+        : _usage(usage), _input(input) {}
 
 	virtual ~console_cmd_generator() {}
 
@@ -80,18 +83,27 @@ public:
 		return this->_usage;
 	}
 
+protected:
+    void read_line(std::wstring& line) const{
+        std::getline(_input, line);
+    }
+
 private:
 	console_cmd_generator(const console_cmd_generator&);
 	console_cmd_generator& operator= (const console_cmd_generator&);
 
 private:
 	std::wstring _usage;
+    istream& _input;
 };
 
 class save_cmd_generator : public console_cmd_generator {
 public:
 	save_cmd_generator() : console_cmd_generator(SAVE_USAGE) {
 	}
+
+    save_cmd_generator(istream& in) : console_cmd_generator(SAVE_USAGE, in) {
+    }
 
 	virtual std::shared_ptr<command> generate(context* context) const override;
 };
@@ -100,12 +112,12 @@ std::shared_ptr<command> save_cmd_generator::generate(context* context) const {
 	std::wstring file_name;
 	do {
 		std::wcout << L"file:> ";
-		std::getline(std::wcin, file_name);
+        read_line(file_name);
 	} while (file_name.length() == 0);
 
 	std::wstring order_by;
 	std::wcout << L"order:> ";
-	std::getline(std::wcin, order_by);
+	read_line(order_by);
 	return std::move(std::shared_ptr<command>(new save_command(context, file_name, order_by)));
 }
 
@@ -124,6 +136,8 @@ public:
 	add_cmd_generator() : console_cmd_generator(ADD_USAGE) {
 	}
 
+    add_cmd_generator(istream& in) : console_cmd_generator(ADD_USAGE, in) {
+    }
 	virtual std::shared_ptr<command> generate(context* context) const override;
 };
 
@@ -131,7 +145,7 @@ std::shared_ptr<command> add_cmd_generator::generate(context* context) const {
 	std::wstring values;
 	do {
 		std::wcout << L"values:> ";
-		std::getline(std::wcin, values);
+		read_line(values);
 	} while (values.length() == 0);
 
 	add_command* cmd = new add_command(context);
@@ -148,6 +162,9 @@ public:
 	batch_add_cmd_generator() : console_cmd_generator(BATCH_ADD_USAGE) {
 	}
 
+    batch_add_cmd_generator(istream& in) : console_cmd_generator(BATCH_ADD_USAGE, in) {
+    }
+
 	virtual std::shared_ptr<command> generate(context* context) const override;
 };
 
@@ -155,7 +172,7 @@ std::shared_ptr<command> batch_add_cmd_generator::generate(context* context) con
 	std::wstring values;
 	do {
 		std::wcout << L"values:> ";
-		std::getline(std::wcin, values);
+		read_line(values);
 	} while (values.length() == 0);
 
 	batch_add_command* cmd = new batch_add_command(context);
@@ -184,6 +201,9 @@ public:
 	show_cmd_generator() : console_cmd_generator(SHOW_USAGE) {
 	}
 
+    show_cmd_generator(istream& in) : console_cmd_generator(SHOW_USAGE, in) {
+    }
+
 	virtual std::shared_ptr<command> generate(context* context) const override;
 };
 
@@ -191,15 +211,15 @@ std::shared_ptr<command> show_cmd_generator::generate(context* context) const {
 	std::wstring columns;
 	do {
 		std::wcout << L"columns:> ";
-		std::getline(std::wcin, columns);
+		read_line(columns);
 	} while (columns.length() == 0);
 	
 	std::wstring query;
 	std::wstring order_by;
 	std::wcout << L"query:> ";
-	std::getline(std::wcin, query);
+	read_line(query);
 	std::wcout << L"order:> ";
-	std::getline(std::wcin, order_by);
+	read_line(order_by);
 	string_tokenizer tokenizer(columns, L",");
 	show_command* cmd = new show_command(context, query, order_by);
 	while (tokenizer.has_more()) {
@@ -217,6 +237,9 @@ public:
 	update_cmd_generator() : console_cmd_generator(UPDATE_USAGE) {
 	}
 
+    update_cmd_generator(istream& in) : console_cmd_generator(UPDATE_USAGE, in) {
+    }
+
 	virtual std::shared_ptr<command> generate(context* context) const override;
 };
 
@@ -224,9 +247,9 @@ std::shared_ptr<command> update_cmd_generator::generate(context* context) const 
 	std::wstring query;
 	std::wstring set_str;
 	std::wcout << L"set:> ";
-	std::getline(std::wcin, set_str);
+	read_line(set_str);
 	std::wcout << L"query:> ";
-	std::getline(std::wcin, query);
+	read_line(query);
 	return std::move(std::shared_ptr<command>(new update_command(context, query, set_str)));
 }
 
@@ -235,13 +258,16 @@ public:
 	delete_cmd_generator() : console_cmd_generator(DELETE_USAGE) {
 	}
 
+    delete_cmd_generator(istream& in) : console_cmd_generator(DELETE_USAGE, in) {
+    }
+
 	virtual std::shared_ptr<command> generate(context* context) const override;
 };
 
 std::shared_ptr<command> delete_cmd_generator::generate(context* context) const {
 	std::wstring query;
 	std::wcout << L"what:> ";
-	std::getline(std::wcin, query);
+	read_line(query);
 	return std::move(std::shared_ptr<command>(new delete_command(context, query)));
 }
 
@@ -249,10 +275,12 @@ class drop_column_cmd_generator : public console_cmd_generator {
 public:
 	drop_column_cmd_generator() : console_cmd_generator(DROP_COLUMN_USAGE){}
 
+    drop_column_cmd_generator(istream& in) : console_cmd_generator(DROP_COLUMN_USAGE, in) {}
+
 	virtual std::shared_ptr<command> generate(context* context) const override {
 		std::wstring column;
 		std::wcout << L"column:> ";
-		std::getline(std::wcin, column);
+		read_line(column);
 		return std::move(std::shared_ptr<command>(new delete_column_command(context, column)));
 	}
 };
@@ -261,13 +289,15 @@ class add_column_cmd_generator : public console_cmd_generator {
 public:
 	add_column_cmd_generator() : console_cmd_generator(ADD_COLUMN_USAGE) {}
 
+    add_column_cmd_generator(istream& in) : console_cmd_generator(ADD_COLUMN_USAGE, in) {}
+
 	virtual std::shared_ptr<command> generate(context* context) const override {
 		std::wstring column;
 		std::wcout << L"column:> ";
-		std::getline(std::wcin, column);
+		read_line(column);
 		std::wstring default_value;
 		std::wcout << L"default:> ";
-		std::getline(std::wcin, default_value);
+		read_line(default_value);
 		return std::move(std::shared_ptr<command>(new add_column_command(context, column, default_value)));
 	}
 };
@@ -276,28 +306,30 @@ class reduce_cmd_generator : public console_cmd_generator {
 public:
 	reduce_cmd_generator() : console_cmd_generator(REDUCE_USAGE) {}
 
+    reduce_cmd_generator(istream& in) : console_cmd_generator(REDUCE_USAGE, in) {}
+
 	virtual std::shared_ptr<command> generate(context* context) const override {
 		std::wstring group_by;
 		do {
 			std::wcout << L"by:> ";
-			std::getline(std::wcin, group_by);
+			read_line(group_by);
 		} while (group_by.length() == 0);
 
 		std::wstring columns;
 		do {
 			std::wcout << L"columns:> ";
-			std::getline(std::wcin, columns);
+			read_line(columns);
 		} while (columns.length() == 0);
 
 		std::wstring values;
 		do {
 			std::wcout << L"values:> ";
-			std::getline(std::wcin, values);
+			read_line(values);
 		} while (values.length() == 0);
 
 		std::wstring order_by;
 		std::wcout << L"order:> ";
-		std::getline(std::wcin, order_by);
+		read_line(order_by);
 
 		string_tokenizer tokenizer(columns, L",");
 		reduce_command* cmd = new reduce_command(context, group_by, order_by);
@@ -325,28 +357,30 @@ class vac_cmd_generator : public console_cmd_generator {
 public:
 	vac_cmd_generator() : console_cmd_generator(VALUES_AS_COLUMNS_USAGE) {}
 
+    vac_cmd_generator(istream& in) : console_cmd_generator(VALUES_AS_COLUMNS_USAGE, in) {}
+
 	virtual std::shared_ptr<command> generate(context* context) const override {
 		std::wstring group_by;
 		do {
 			std::wcout << L"by:> ";
-			std::getline(std::wcin, group_by);
+			read_line(group_by);
 		} while (group_by.length() == 0);
 
 		std::wstring column_source;
 		do {
 			std::wcout << L"from:> ";
-			std::getline(std::wcin, column_source);
+			read_line(column_source);
 		} while (column_source.length() == 0);
 
 		std::wstring value_expression;
 		do {
 			std::wcout << L"value:> ";
-			std::getline(std::wcin, value_expression);
+			read_line(value_expression);
 		} while (value_expression.length() == 0);
 
 		std::wstring default_value;
 		std::wcout << L"default:> ";
-		std::getline(std::wcin, default_value);
+		read_line(default_value);
 
 		return std::move(std::shared_ptr<command>(new values_as_columns_command(context, group_by, column_source, value_expression, default_value)));
 	}
@@ -354,33 +388,34 @@ public:
 
 class console_command_provider : public command_provider {
 public:
-	console_command_provider();
+	console_command_provider(istream& in);
 public:
 	virtual std::shared_ptr<command> next_command(context* context) override;
 
 private:
 	std::unordered_map<std::wstring, std::shared_ptr<console_cmd_generator>> _generators;
+    istream& _input;
 };
 
-console_command_provider::console_command_provider() : _generators() {
-	this->_generators.insert(std::make_pair(L"add", std::move(std::shared_ptr<console_cmd_generator>(new add_cmd_generator()))));
-	this->_generators.insert(std::make_pair(L"save", std::move(std::shared_ptr<console_cmd_generator>(new save_cmd_generator()))));
+console_command_provider::console_command_provider(istream& in) : _generators(), _input(in) {
+	this->_generators.insert(std::make_pair(L"add", std::move(std::shared_ptr<console_cmd_generator>(new add_cmd_generator(_input)))));
+	this->_generators.insert(std::make_pair(L"save", std::move(std::shared_ptr<console_cmd_generator>(new save_cmd_generator(_input)))));
 	this->_generators.insert(std::make_pair(L"exit", std::move(std::shared_ptr<console_cmd_generator>(new exit_cmd_generator()))));
-	this->_generators.insert(std::make_pair(L"batchadd", std::move(std::shared_ptr<console_cmd_generator>(new batch_add_cmd_generator()))));
-	this->_generators.insert(std::make_pair(L"show", std::move(std::shared_ptr<console_cmd_generator>(new show_cmd_generator()))));
-	this->_generators.insert(std::make_pair(L"update", std::move(std::shared_ptr<console_cmd_generator>(new update_cmd_generator()))));
-	this->_generators.insert(std::make_pair(L"delete", std::move(std::shared_ptr<console_cmd_generator>(new delete_cmd_generator()))));
-	this->_generators.insert(std::make_pair(L"dropcolumn", std::move(std::shared_ptr<console_cmd_generator>(new drop_column_cmd_generator()))));
-	this->_generators.insert(std::make_pair(L"addcolumn", std::move(std::shared_ptr<console_cmd_generator>(new add_column_cmd_generator()))));
-	this->_generators.insert(std::make_pair(L"reduce", std::move(std::shared_ptr<console_cmd_generator>(new reduce_cmd_generator()))));
-	this->_generators.insert(std::make_pair(L"vac", std::move(std::shared_ptr<console_cmd_generator>(new vac_cmd_generator()))));
+	this->_generators.insert(std::make_pair(L"batchadd", std::move(std::shared_ptr<console_cmd_generator>(new batch_add_cmd_generator(_input)))));
+	this->_generators.insert(std::make_pair(L"show", std::move(std::shared_ptr<console_cmd_generator>(new show_cmd_generator(_input)))));
+	this->_generators.insert(std::make_pair(L"update", std::move(std::shared_ptr<console_cmd_generator>(new update_cmd_generator(_input)))));
+	this->_generators.insert(std::make_pair(L"delete", std::move(std::shared_ptr<console_cmd_generator>(new delete_cmd_generator(_input)))));
+	this->_generators.insert(std::make_pair(L"dropcolumn", std::move(std::shared_ptr<console_cmd_generator>(new drop_column_cmd_generator(_input)))));
+	this->_generators.insert(std::make_pair(L"addcolumn", std::move(std::shared_ptr<console_cmd_generator>(new add_column_cmd_generator(_input)))));
+	this->_generators.insert(std::make_pair(L"reduce", std::move(std::shared_ptr<console_cmd_generator>(new reduce_cmd_generator(_input)))));
+	this->_generators.insert(std::make_pair(L"vac", std::move(std::shared_ptr<console_cmd_generator>(new vac_cmd_generator(_input)))));
 }
 
 std::shared_ptr<command> console_command_provider::next_command(context* context) {
 	while (true) {
 		std::wstring cmd;
 		std::wcout << L"command:> ";
-		std::getline(std::wcin, cmd);
+		std::getline(_input, cmd);
 		if (cmd.length() > 0) {
 			std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::tolower);
 			if (cmd == L"help") {
@@ -408,6 +443,6 @@ std::shared_ptr<command> console_command_provider::next_command(context* context
 	}
 }
 
-std::shared_ptr<command_provider> create_command_provider() {
-	return std::move(std::shared_ptr<command_provider>(new console_command_provider()));
+std::shared_ptr<command_provider> create_command_provider(istream& in) {
+	return std::move(std::shared_ptr<command_provider>(new console_command_provider(in)));
 }

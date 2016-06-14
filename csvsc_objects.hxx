@@ -309,4 +309,4 @@ private:
 	std::wstring _value_column;
 	std::wstring _default_value;
 };
-std::shared_ptr<command_provider> create_command_provider();
+std::shared_ptr<command_provider> create_command_provider(std::basic_istream<wchar_t>& in);
